@@ -99,13 +99,19 @@ public final class LibraryUtil {
             if (reply.hasCompleted()) {
                 return reply.resultIfPresent();
             } else {
+                System.err.println(
+                        "SESSION STATE BEFORE RELEASE " + library.pendingInitiatorSessions().get(0).state()
+                );
                 Reply<SessionReplyStatus> releaseReply = library.releaseToGateway(library.pendingInitiatorSessions().get(0), 1000);
                 while (releaseReply.isExecuting()) {
                     idleStrategy.idle(library.poll(fragmentLimit));
                 }
                 System.err.println("RELEASE REPLY: " + releaseReply.state());
-                System.err.println("PENDING SESSIONS: " + library.pendingInitiatorSessions().size() + " SESSIONS: " + library.sessions().size());
-
+                System.err.println("PENDING SESSIONS: " + library.pendingInitiatorSessions());
+                System.err.println("PENDING SESSIONS: " + library.pendingInitiatorSessions().stream().map(Object::hashCode).toList());
+                System.err.println(
+                        "SESSION STATE AFTER RELEASE " + library.pendingInitiatorSessions().get(0).state()
+                );
             }
         }
 

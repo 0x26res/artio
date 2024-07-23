@@ -1034,6 +1034,7 @@ final class LibraryPoller implements LibraryEndPointHandler, ProtocolHandler, Au
         session = checkReconnect(sessionId, connectionId, sessionState, heartbeatIntervalInS,
             sequenceIndex, enableLastMsgSeqNumProcessed, fixDictionary, connectionType, address);
         final boolean isNewConnect = session == null;
+        System.err.println("IS NEW CONNECT " + isNewConnect);
 
         final OnMessageInfo messageInfo = isNewConnect ? new OnMessageInfo() : session.messageInfo();
 
@@ -1216,6 +1217,7 @@ final class LibraryPoller implements LibraryEndPointHandler, ProtocolHandler, Au
     {
         if (connectionType == INITIATOR && sessionState != ACTIVE)
         {
+            System.err.println("ADDING " + session.hashCode() + " " + sessionState);
             pendingInitiatorSessions = ArrayUtil.add(pendingInitiatorSessions, session);
         }
         else
