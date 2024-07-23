@@ -40,7 +40,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.aeron.driver.ThreadingMode.SHARED;
 import static java.util.Collections.singletonList;
-import static uk.co.real_logic.artio.messages.SessionState.DISCONNECTED;
 
 public final class SampleServer
 {
@@ -61,7 +60,11 @@ public final class SampleServer
         final EngineConfiguration configuration = new EngineConfiguration()
             .bindTo("localhost", 9999)
             .libraryAeronChannel(aeronChannel);
-        configuration.authenticationStrategy(authenticationStrategy);
+
+        configuration.authenticationStrategy(authenticationStrategy)
+                .aeronArchiveContext()
+                .controlResponseChannel(aeronChannel)
+                .controlRequestChannel(aeronChannel);
 
         cleanupOldLogFileDir(configuration);
 
@@ -71,6 +74,8 @@ public final class SampleServer
 
         final Archive.Context archiveContext = new Archive.Context()
             .threadingMode(ArchiveThreadingMode.SHARED)
+                .controlChannel(aeronChannel)
+                .replicationChannel(aeronChannel)
             .deleteArchiveOnStart(true);
 
         try (ArchivingMediaDriver driver = ArchivingMediaDriver.launch(context, archiveContext);
@@ -95,11 +100,6 @@ public final class SampleServer
                 while (running.get())
                 {
                     idleStrategy.idle(library.poll(1));
-
-                    if (session != null && session.state() == DISCONNECTED)
-                    {
-                        break;
-                    }
                 }
             }
         }

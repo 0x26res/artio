@@ -101,6 +101,8 @@ public final class LibraryUtil
                 idleStrategy.idle(library.poll(fragmentLimit));
             }
 
+            System.err.println("PENDING SESSIONS: " + library.pendingInitiatorSessions().size());
+
             if (reply.hasCompleted())
             {
                 return reply.resultIfPresent();

@@ -74,6 +74,7 @@ public final class SampleClient
 
         archiveContext
             .controlChannel(CONTROL_REQUEST_CHANNEL)
+            .replicationChannel(CONTROL_REQUEST_CHANNEL)
             .recordingEventsChannel(RECORDING_EVENTS_CHANNEL);
 
         try (ArchivingMediaDriver driver = ArchivingMediaDriver.launch(context, archiveContext))
@@ -87,6 +88,7 @@ public final class SampleClient
                     .address("localhost", 9999)
                     .targetCompId(ACCEPTOR_COMP_ID)
                     .senderCompId(INITIATOR_COMP_ID)
+                    .initialReceivedSequenceNumber(200)
                     .build();
 
                 final SleepingIdleStrategy idleStrategy = new SleepingIdleStrategy(100);
@@ -106,7 +108,7 @@ public final class SampleClient
                     final Session session = LibraryUtil.initiate(
                         library,
                         sessionConfig,
-                        10_000,
+                        10,
                         idleStrategy);
 
                     while (!session.isActive())
