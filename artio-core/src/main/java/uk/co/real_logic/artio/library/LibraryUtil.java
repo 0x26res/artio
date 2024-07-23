@@ -21,16 +21,16 @@ import org.agrona.LangUtil;
 import org.agrona.concurrent.IdleStrategy;
 import uk.co.real_logic.artio.FixGatewayException;
 import uk.co.real_logic.artio.Reply;
+import uk.co.real_logic.artio.messages.SessionReplyStatus;
 import uk.co.real_logic.artio.session.Session;
 
 
 /**
  * Utility methods for blocking operations on the {@link FixLibrary}.
- *
+ * <p>
  * Kept in a separate class in order to ensure that the main {@link FixLibrary} API is kept non-blocking.
  */
-public final class LibraryUtil
-{
+public final class LibraryUtil {
 
     private static final int DEFAULT_FRAGMENT_LIMIT = 10;
 
@@ -38,26 +38,24 @@ public final class LibraryUtil
      * Initiate a FIX session with a FIX acceptor. This method returns a reply object
      * wrapping the Session itself.
      *
-     * @param library the library to attempt to initiate from.
+     * @param library       the library to attempt to initiate from.
      * @param configuration the configuration to use for the session.
-     * @param attempts the number of times to attempt to connect to a gateway.
-     * @param idleStrategy the {@link IdleStrategy} to use when polling.
+     * @param attempts      the number of times to attempt to connect to a gateway.
+     * @param idleStrategy  the {@link IdleStrategy} to use when polling.
      * @return the session object for the session that you've initiated.
-     * @throws IllegalStateException if you're trying to initiate two sessions at the same time or if there's a timeout talking to
-     *         the {@link uk.co.real_logic.artio.engine.FixEngine}.
-     *         This probably indicates that there's a problem in your code or that your engine isn't running.
-     * @throws FixGatewayException
-     *         if you're unable to connect to the accepting gateway.
-     *         This probably indicates a configuration problem related to the external gateway.
-     * @throws TimeoutException the connection has timed out <code>attempts</code> number of times.
+     * @throws IllegalStateException    if you're trying to initiate two sessions at the same time or if there's a timeout talking to
+     *                                  the {@link uk.co.real_logic.artio.engine.FixEngine}.
+     *                                  This probably indicates that there's a problem in your code or that your engine isn't running.
+     * @throws FixGatewayException      if you're unable to connect to the accepting gateway.
+     *                                  This probably indicates a configuration problem related to the external gateway.
+     * @throws TimeoutException         the connection has timed out <code>attempts</code> number of times.
      * @throws IllegalArgumentException if attempts is &lt; 1
      */
     public static Session initiate(
-        final FixLibrary library,
-        final SessionConfiguration.Builder configuration,
-        final int attempts,
-        final IdleStrategy idleStrategy) throws IllegalStateException, FixGatewayException, TimeoutException
-    {
+            final FixLibrary library,
+            final SessionConfiguration.Builder configuration,
+            final int attempts,
+            final IdleStrategy idleStrategy) throws IllegalStateException, FixGatewayException, TimeoutException {
         return initiate(library, configuration, attempts, idleStrategy, DEFAULT_FRAGMENT_LIMIT);
     }
 
@@ -65,56 +63,55 @@ public final class LibraryUtil
      * Initiate a FIX session with a FIX acceptor. This method returns a reply object
      * wrapping the Session itself.
      *
-     * @param library the library to attempt to initiate from.
+     * @param library       the library to attempt to initiate from.
      * @param configuration the configuration to use for the session.
-     * @param attempts the number of times to attempt to connect to a gateway.
-     * @param idleStrategy the {@link IdleStrategy} to use when polling.
+     * @param attempts      the number of times to attempt to connect to a gateway.
+     * @param idleStrategy  the {@link IdleStrategy} to use when polling.
      * @param fragmentLimit the number of messages to poll on the library before idling.
      * @return the session object for the session that you've initiated.
-     * @throws IllegalStateException if you're trying to initiate two sessions at the same time or if there's a timeout talking to
-     *         the {@link uk.co.real_logic.artio.engine.FixEngine}.
-     *         This probably indicates that there's a problem in your code or that your engine isn't running.
-     * @throws FixGatewayException
-     *         if you're unable to connect to the accepting gateway.
-     *         This probably indicates a configuration problem related to the external gateway.
-     * @throws TimeoutException the connection has timed out <code>attempts</code> number of times.
+     * @throws IllegalStateException    if you're trying to initiate two sessions at the same time or if there's a timeout talking to
+     *                                  the {@link uk.co.real_logic.artio.engine.FixEngine}.
+     *                                  This probably indicates that there's a problem in your code or that your engine isn't running.
+     * @throws FixGatewayException      if you're unable to connect to the accepting gateway.
+     *                                  This probably indicates a configuration problem related to the external gateway.
+     * @throws TimeoutException         the connection has timed out <code>attempts</code> number of times.
      * @throws IllegalArgumentException if attempts is &lt; 1
      */
     private static Session initiate(
-        final FixLibrary library,
-        final SessionConfiguration.Builder configuration,
-        final int attempts,
-        final IdleStrategy idleStrategy,
-        final int fragmentLimit)
-    {
-        if (attempts < 1)
-        {
+            final FixLibrary library,
+            final SessionConfiguration.Builder configuration,
+            final int attempts,
+            final IdleStrategy idleStrategy,
+            final int fragmentLimit) {
+        if (attempts < 1) {
             throw new IllegalArgumentException("Attempts should be >= 1, but is " + attempts);
         }
 
         Reply<Session> reply = null;
-        for (int i = 0; i < attempts; i++)
-        {
-            reply = library.initiate(configuration.initialReceivedSequenceNumber(i < 3 ? 200 : SessionConfiguration.AUTOMATIC_INITIAL_SEQUENCE_NUMBER ).build());
-            while (reply.isExecuting())
-            {
+        for (int i = 0; i < attempts; i++) {
+            reply = library.initiate(configuration.initialReceivedSequenceNumber(i < 3 ? 200 : SessionConfiguration.AUTOMATIC_INITIAL_SEQUENCE_NUMBER).build());
+            while (reply.isExecuting()) {
                 idleStrategy.idle(library.poll(fragmentLimit));
             }
 
             System.err.println("PENDING SESSIONS: " + library.pendingInitiatorSessions().size() + " SESSIONS: " + library.sessions().size());
 
-            if (reply.hasCompleted())
-            {
+            if (reply.hasCompleted()) {
                 return reply.resultIfPresent();
+            } else {
+                Reply<SessionReplyStatus> releaseReply = library.releaseToGateway(library.pendingInitiatorSessions().get(0), 1000);
+                while (releaseReply.isExecuting()) {
+                    idleStrategy.idle(library.poll(fragmentLimit));
+                }
+                System.err.println("RELEASE REPLY: " + releaseReply.state());
+                System.err.println("PENDING SESSIONS: " + library.pendingInitiatorSessions().size() + " SESSIONS: " + library.sessions().size());
+
             }
         }
 
-        if (reply.hasTimedOut())
-        {
+        if (reply.hasTimedOut()) {
             throw new TimeoutException("reply timeout", AeronException.Category.ERROR);
-        }
-        else
-        {
+        } else {
             LangUtil.rethrowUnchecked(reply.error());
             // never executed:
             return null;
