@@ -84,12 +84,10 @@ public final class SampleClient
                 // Each outbound session with an Exchange or broker is represented by
                 // a Session object. Each session object can be configured with connection
                 // details and credentials.
-                final SessionConfiguration sessionConfig = SessionConfiguration.builder()
+                final SessionConfiguration.Builder sessionConfig = SessionConfiguration.builder()
                     .address("localhost", 9999)
                     .targetCompId(ACCEPTOR_COMP_ID)
-                    .senderCompId(INITIATOR_COMP_ID)
-                    .initialReceivedSequenceNumber(200)
-                    .build();
+                    .senderCompId(INITIATOR_COMP_ID);
 
                 final SleepingIdleStrategy idleStrategy = new SleepingIdleStrategy(100);
 

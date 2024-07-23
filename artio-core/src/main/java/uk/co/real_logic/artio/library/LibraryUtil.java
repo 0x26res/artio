@@ -54,7 +54,7 @@ public final class LibraryUtil
      */
     public static Session initiate(
         final FixLibrary library,
-        final SessionConfiguration configuration,
+        final SessionConfiguration.Builder configuration,
         final int attempts,
         final IdleStrategy idleStrategy) throws IllegalStateException, FixGatewayException, TimeoutException
     {
@@ -82,7 +82,7 @@ public final class LibraryUtil
      */
     private static Session initiate(
         final FixLibrary library,
-        final SessionConfiguration configuration,
+        final SessionConfiguration.Builder configuration,
         final int attempts,
         final IdleStrategy idleStrategy,
         final int fragmentLimit)
@@ -95,13 +95,13 @@ public final class LibraryUtil
         Reply<Session> reply = null;
         for (int i = 0; i < attempts; i++)
         {
-            reply = library.initiate(configuration);
+            reply = library.initiate(configuration.initialReceivedSequenceNumber(i < 3 ? 200 : SessionConfiguration.AUTOMATIC_INITIAL_SEQUENCE_NUMBER ).build());
             while (reply.isExecuting())
             {
                 idleStrategy.idle(library.poll(fragmentLimit));
             }
 
-            System.err.println("PENDING SESSIONS: " + library.pendingInitiatorSessions().size());
+            System.err.println("PENDING SESSIONS: " + library.pendingInitiatorSessions().size() + " SESSIONS: " + library.sessions().size());
 
             if (reply.hasCompleted())
             {
